@@ -1,3 +1,4 @@
+#include "Channel.h"
 #include "Epoll.h"
 #include "Exception.h"
 #include "InetAddress.h"
@@ -35,22 +36,24 @@ int main(void)
         serv_sock.listen();
         Epoll ep;
         serv_sock.set_nonblocking();
-        ep.add_fd(serv_sock.get_fd(), EPOLLIN | EPOLLET);
+        auto serv_chan = new Channel(&ep, serv_sock.get_fd());
+        serv_chan->enable_reading();
         //轮询
         while (true) {
             auto events = ep.poll();
             for (auto event : events) {
                 //如果是当前服务器的fd
-                if (event.data.fd == serv_sock.get_fd()) {
+                if (event->get_fd() == serv_sock.get_fd()) {
                     auto clnt_addr = new InetAddress;
                     auto clnt_sock = new Socket(serv_sock.accept(clnt_addr));
                     cout << "new client fd " << clnt_sock->get_fd();
                     cout << " IP: " << inet_ntoa(clnt_addr->addr.sin_addr);
                     cout << " port: " << ntohs(clnt_addr->addr.sin_port) << endl;
                     clnt_sock->set_nonblocking();
-                    ep.add_fd(clnt_sock->get_fd(), EPOLLIN | EPOLLET);
-                } else if (event.events & EPOLLIN)
-                    handleReadEvent(event.data.fd);
+                    auto clnt_chan = new Channel(&ep, clnt_sock->get_fd());
+                    clnt_chan->enable_reading();
+                } else if (event->get_revents() & EPOLLIN)
+                    handleReadEvent(event->get_fd());
                 else {
                     cout << "something else happened!" << endl;
                 }

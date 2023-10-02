@@ -1,4 +1,5 @@
 #include "Epoll.h"
+#include "Channel.h"
 #include "Exception.h"
 #include <strings.h>
 #include <sys/epoll.h>
@@ -37,13 +38,32 @@ void jian::Epoll::add_fd(int fd, uint32_t op)
         throw EpollException {};
 }
 
-std::vector<epoll_event> jian::Epoll::poll(int timeout)
+void jian::Epoll::update_channel(jian::Channel* chan)
 {
-    std::vector<epoll_event> active_events;
+    epoll_event ev;
+    bzero(&ev, sizeof(ev));
+    ev.data.ptr = chan;
+    ev.events = chan->get_events();
+    if (chan->is_in_epoll()) {
+        if (-1 == epoll_ctl(epfd, EPOLL_CTL_MOD, chan->get_fd(), &ev))
+            throw EpollException {};
+    } else {
+        if (-1 == epoll_ctl(epfd, EPOLL_CTL_ADD, chan->get_fd(), &ev))
+            throw EpollException {};
+        chan->set_in_epoll();
+    }
+}
+
+std::vector<jian::Channel*> jian::Epoll::poll(int timeout)
+{
+    decltype(poll()) active_channels;
     int nfds = epoll_wait(epfd, events, MAX_EVENTS, timeout);
-    if (nfds == -1)
+    if (-1 == nfds)
         throw EpollException {};
-    for (int i = 0; i < nfds; i++)
-        active_events.push_back(events[i]);
-    return active_events;
+    for (int i = 0; i < nfds; i++) {
+        auto chan = reinterpret_cast<jian::Channel*>(events[i].data.ptr);
+        chan->set_revents(events[i].events);
+        active_channels.push_back(chan);
+    }
+    return active_channels;
 }

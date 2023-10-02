@@ -1,10 +1,14 @@
 #pragma once
 
+#include "Channel.h"
 #include <cstdint>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <vector>
 
+namespace jian {
+class Channel;
+}
 namespace jian {
 class Epoll {
 private:
@@ -16,6 +20,8 @@ public:
     ~Epoll();
 
     void add_fd(int fd, uint32_t op);
-    std::vector<epoll_event> poll(int timeout = -1);
+
+    void update_channel(jian::Channel* chan);
+    std::vector<jian::Channel*> poll(int timeout = -1);
 };
 }
