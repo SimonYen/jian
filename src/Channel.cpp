@@ -1,11 +1,12 @@
 #include "Channel.h"
 #include "Epoll.h"
+#include "EventLoop.h"
 #include <cstdint>
 #include <sys/epoll.h>
 #include <unistd.h>
 
-jian::Channel::Channel(jian::Epoll* _ep, int _fd)
-    : ep(_ep)
+jian::Channel::Channel(jian::EventLoop* _loop, int _fd)
+    : loop(_loop)
     , fd(_fd)
     , events(0)
     , revents(0)
@@ -24,7 +25,7 @@ jian::Channel::~Channel()
 void jian::Channel::enable_reading()
 {
     events = EPOLLIN | EPOLLET;
-    ep->update_channel(this);
+    loop->update_channel(this);
 }
 
 int jian::Channel::get_fd() { return fd; }
@@ -40,4 +41,14 @@ void jian::Channel::set_in_epoll() { in_epoll = true; }
 void jian::Channel::set_revents(uint32_t _revents)
 {
     revents = _revents;
+}
+
+void jian::Channel::set_callback(std::function<void()> _callback)
+{
+    callback = _callback;
+}
+
+void jian::Channel::handle_event()
+{
+    callback();
 }
