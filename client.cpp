@@ -1,5 +1,6 @@
 #include "Exception.h"
 #include <arpa/inet.h>
+#include <cstdio>
 #include <iostream>
 #include <string.h>
 #include <sys/socket.h>
@@ -9,40 +10,44 @@
 
 int main()
 {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1)
-        throw jian::SocketException {};
+    try {
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd == -1)
+            throw jian::SocketException {};
 
-    sockaddr_in serv_addr;
-    bzero(&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    serv_addr.sin_port = htons(8888);
+        sockaddr_in serv_addr;
+        bzero(&serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        serv_addr.sin_port = htons(8888);
 
-    if (connect(sockfd, (sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
-        throw jian::SocketException {};
+        if (connect(sockfd, (sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
+            throw jian::SocketException {};
 
-    while (true) {
-        char buf[BUFFER_SIZE]; //在这个版本，buf大小必须大于或等于服务器端buf大小，不然会出错，想想为什么？
-        bzero(&buf, sizeof(buf));
-        scanf("%s", buf);
-        ssize_t write_bytes = write(sockfd, buf, sizeof(buf));
-        if (write_bytes == -1) {
-            printf("socket already disconnected, can't write any more!\n");
-            break;
+        while (true) {
+            char buf[BUFFER_SIZE]; //在这个版本，buf大小必须大于或等于服务器端buf大小，不然会出错，想想为什么？
+            bzero(&buf, sizeof(buf));
+            scanf("%s", buf);
+            ssize_t write_bytes = write(sockfd, buf, sizeof(buf));
+            if (write_bytes == -1) {
+                printf("socket already disconnected, can't write any more!\n");
+                break;
+            }
+            bzero(&buf, sizeof(buf));
+            ssize_t read_bytes = read(sockfd, buf, sizeof(buf));
+            if (read_bytes > 0) {
+                printf("message from server: %s\n", buf);
+            } else if (read_bytes == 0) {
+                printf("server socket disconnected!\n");
+                break;
+            } else if (read_bytes == -1) {
+                close(sockfd);
+                return -1;
+            }
         }
-        bzero(&buf, sizeof(buf));
-        ssize_t read_bytes = read(sockfd, buf, sizeof(buf));
-        if (read_bytes > 0) {
-            printf("message from server: %s\n", buf);
-        } else if (read_bytes == 0) {
-            printf("server socket disconnected!\n");
-            break;
-        } else if (read_bytes == -1) {
-            close(sockfd);
-            return -1;
-        }
+        close(sockfd);
+    } catch (jian::JianException& e) {
+        printf("%s\n", e.what());
     }
-    close(sockfd);
     return 0;
 }
