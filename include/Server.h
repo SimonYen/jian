@@ -3,9 +3,11 @@
 namespace jian {
 class EventLoop;
 class Socket;
+class Acceptor;
 class Server {
 private:
-    EventLoop* loop;
+    jian::EventLoop* loop;
+    jian::Acceptor* acceptor;
 
 public:
     Server(jian::EventLoop* _loop);

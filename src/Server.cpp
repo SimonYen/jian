@@ -1,4 +1,5 @@
 #include "Server.h"
+#include "Acceptor.h"
 #include "Channel.h"
 #include "EventLoop.h"
 #include "InetAddress.h"
@@ -15,17 +16,9 @@ const int READ_BUFFER = 1024;
 jian::Server::Server(jian::EventLoop* _loop)
     : loop(_loop)
 {
-    auto serv_sock = new Socket();
-    auto serv_addr = new InetAddress("127.0.0.1", 8888);
-
-    serv_sock->bind(serv_addr);
-    serv_sock->listen();
-    serv_sock->set_nonblocking();
-
-    auto serv_chan = new Channel(loop, serv_sock->get_fd());
-    std::function<void()> cb = std::bind(&Server::new_connection, this, serv_sock);
-    serv_chan->set_callback(cb);
-    serv_chan->enable_reading();
+    acceptor = new jian::Acceptor(loop);
+    std::function<void(Socket*)> cb = std::bind(&Server::new_connection, this, std::placeholders::_1);
+    acceptor->set_new_connection_callback(cb);
 }
 
 jian::Server::~Server()
