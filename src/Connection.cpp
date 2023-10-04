@@ -1,13 +1,13 @@
 #include "Connection.h"
+#include "Buffer.h"
 #include "Channel.h"
 #include "EventLoop.h"
+#include "Exception.h"
 #include "Socket.h"
 #include <cstring>
 #include <functional>
 #include <iostream>
 #include <unistd.h>
-
-const int READ_BUFFER = 1024;
 
 jian::Connection::Connection(jian::EventLoop* _loop, jian::Socket* _sock)
     : loop(_loop)
@@ -18,6 +18,7 @@ jian::Connection::Connection(jian::EventLoop* _loop, jian::Socket* _sock)
     std::function<void()> cb = std::bind(&Connection::echo, this, sock->get_fd());
     chan->set_callback(cb);
     chan->enable_reading();
+    read_buffer = new Buffer();
 }
 
 jian::Connection::~Connection()
@@ -28,18 +29,21 @@ jian::Connection::~Connection()
 
 void jian::Connection::echo(int fd)
 {
-    char buf[READ_BUFFER];
+    char buf[1024];
     while (true) {
         bzero(&buf, sizeof(buf));
         auto bytes_read = read(fd, buf, sizeof(buf));
         if (bytes_read > 0) {
-            std::cout << "message from client fd " << fd << " :" << buf << std::endl;
-            write(fd, buf, sizeof(buf));
+            read_buffer->append(buf, bytes_read);
         } else if (bytes_read == -1 && errno == EINTR) {
             std::cout << "continue reading" << std::endl;
             continue;
         } else if (bytes_read == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))) {
-            std::cout << "finish reading once, errno: " << errno << std::endl;
+            std::cout << "finish reading once." << std::endl;
+            std::cout << "message from client fd\t" << fd << " : \t" << read_buffer->c_str() << std::endl;
+            if (-1 == write(fd, read_buffer->c_str(), read_buffer->size()))
+                throw SocketException {};
+            read_buffer->clear();
             break;
         } else if (bytes_read == 0) {
             std::cout << "EOF, client fd " << fd << " disconnected" << std::endl;
