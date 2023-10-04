@@ -50,5 +50,5 @@ void jian::Channel::set_callback(std::function<void()> _callback)
 
 void jian::Channel::handle_event()
 {
-    callback();
+    loop->add_thread(callback);
 }

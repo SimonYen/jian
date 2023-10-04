@@ -5,6 +5,9 @@ project(
 	VERSION 0.1
 	)
 
+#添加编译参数 pthread
+set(CMAKE_CXX_FLAGS -pthread)
+
 #添加源文件
 aux_source_directory(${PROJECT_SOURCE_DIR}/src SRC)
 #添加头文件
